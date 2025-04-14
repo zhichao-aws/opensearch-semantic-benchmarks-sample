@@ -1,0 +1,20 @@
+{% import "benchmark.helpers" as benchmark with context %}
+{
+    "name": "semantic-query",
+    "default": false,
+    "schedule": [
+        {
+            "operation": {
+                "name": "neural search",
+                "operation-type": "search",
+                "index": "scifact",
+                "param-source": "neural-search-query-params-source",
+                "data_set_path": "datasets/scifact.jsonl",
+            },
+            "clients": 1,
+            "detailed-results": false,
+            "warmup-iterations": 50,
+            "iterations": 500
+        }
+    ]
+}

@@ -1,0 +1,13 @@
+{% import "benchmark.helpers" as benchmark with context %}
+{
+    "version": 2,
+    "description": "Trec Covid Workload Testing",
+    "indices": [
+        {
+            "name": "{{ index_name }}",
+            "body": "{{ index_body }}"
+        }
+    ],
+    "operations": {{ benchmark.collect(parts="operations/*.json") }},
+    "test_procedures": [{{ benchmark.collect(parts="procedures/test-msmarco-query.json") }}]
+}
