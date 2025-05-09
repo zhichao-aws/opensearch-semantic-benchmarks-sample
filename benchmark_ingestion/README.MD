@@ -52,9 +52,7 @@ PUT /_ingest/pipeline/nlp-ingest-pipeline-sparse
 }
 ```
 
-4. Modify ingest_workload.json. Especially index name, document-count (use `wc -l [filename]` to count) and uncompressed-bytes (use `ls -l [filename]` to count).
-
-5. Run benchmark tool. Add more params like username/password on demand.
-``` 
-opensearch-benchmark execute-test --target-host $HOSTS --pipeline benchmark-only --workload-path ./ingest_workload.json --on-error abort --kill-running-processes
+4. Run benchmark command. example:
+```
+python run_bulk.py --index_name marco --file_name dataset/marco
 ```
