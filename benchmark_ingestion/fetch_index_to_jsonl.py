@@ -8,7 +8,7 @@ from utils import get_os_client
 def export_to_jsonl(client, index_name, output_file, scroll_time="5m", batch_size=1000):
     """
     Export all documents from an OpenSearch index to a JSONL file
-    
+
     Args:
         client: OpenSearch client instance
         index_name: Name of the index to export
@@ -83,28 +83,38 @@ def export_to_jsonl(client, index_name, output_file, scroll_time="5m", batch_siz
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Export OpenSearch index to JSONL file")
-    parser.add_argument("--index_name", type=str, required=True, help="Name of the index to export")
-    parser.add_argument("--output_file", type=str, required=True, help="Path to output JSONL file")
+    parser = argparse.ArgumentParser(
+        description="Export OpenSearch index to JSONL file"
+    )
+    parser.add_argument(
+        "--index_name", type=str, required=True, help="Name of the index to export"
+    )
+    parser.add_argument(
+        "--output_file", type=str, required=True, help="Path to output JSONL file"
+    )
     parser.add_argument("--scroll_time", type=str, default="5m", help="Scroll timeout")
-    parser.add_argument("--batch_size", type=int, default=1000, help="Number of documents per batch")
-    parser.add_argument("--use_aws_auth", action="store_true", help="Whether to use AWS authentication")
+    parser.add_argument(
+        "--batch_size", type=int, default=1000, help="Number of documents per batch"
+    )
+    parser.add_argument(
+        "--use_aws_auth", action="store_true", help="Whether to use AWS authentication"
+    )
     parser.add_argument("--region", type=str, default="us-east-1", help="AWS region")
-    
+
     args = parser.parse_args()
     print(args)
-    
+
     try:
         # Initialize OpenSearch client
         client = get_os_client(use_aws_auth=args.use_aws_auth, region=args.region)
-        
+
         # Export index to JSONL
         export_to_jsonl(
             client=client,
             index_name=args.index_name,
             output_file=args.output_file,
             scroll_time=args.scroll_time,
-            batch_size=args.batch_size
+            batch_size=args.batch_size,
         )
     except KeyboardInterrupt:
         print("\nExport interrupted by user")
