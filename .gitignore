@@ -171,7 +171,11 @@ cython_debug/
 .pypirc
 *jsonl
 *offset
+benchmark_search/*.json
+results
+datasets
 
 dataset
 error.json
 beir
+run.sh

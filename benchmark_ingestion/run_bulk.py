@@ -26,7 +26,7 @@ def create_offset_file(jsonl_file, offset_file):
 def run_processes(args):
     processes = []
 
-    # 启动子进程
+    # Start child processes
     for rank in range(args.total_ranks):
         cmd = [
             "python",
@@ -39,36 +39,43 @@ def run_processes(args):
             args.index_name,
             "--file_name",
             args.file_name,
+            "--bulk_size",
+            str(args.bulk_size),
+            "--region",
+            args.region,
         ]
 
-        # 创建子进程
+        if args.use_aws_auth:
+            cmd.append("--use_aws_auth")
+
+        # Create child process
         process = subprocess.Popen(cmd)
         processes.append(process)
         print(f"Started process for rank {rank} with PID {process.pid}")
 
-    # 处理信号，确保清理子进程
+    # Handle signals to ensure cleanup of child processes
     def signal_handler(signum, frame):
         print("\nReceived signal to terminate. Cleaning up...")
         cleanup_processes(processes)
         sys.exit(0)
 
-    # 注册信号处理器
+    # Register signal handlers
     signal.signal(signal.SIGINT, signal_handler)  # Ctrl+C
-    signal.signal(signal.SIGTERM, signal_handler)  # 终止信号
+    signal.signal(signal.SIGTERM, signal_handler)  # Terminate signal
 
     try:
-        # 等待所有进程完成
+        # Wait for all processes to complete
         while True:
             all_done = True
             for i, proc in enumerate(processes):
-                if proc.poll() is None:  # 进程还在运行
+                if proc.poll() is None:  # Process is still running
                     all_done = False
                 else:
-                    # 进程已结束，检查返回码
+                    # Process has finished, check return code
                     return_code = proc.poll()
                     if return_code != 0:
                         print(f"Process {i} failed with return code {return_code}")
-                        # 获取错误输出
+                        # Get error output
                         _, stderr = proc.communicate()
                         print(f"Error output: {stderr}")
 
@@ -76,7 +83,7 @@ def run_processes(args):
                 print("All processes completed successfully")
                 break
 
-            time.sleep(1)  # 避免过度消耗CPU
+            time.sleep(1)  # Avoid excessive CPU consumption
 
     except Exception as e:
         print(f"Error occurred: {e}")
@@ -88,21 +95,21 @@ def run_processes(args):
 
 
 def cleanup_processes(processes):
-    """清理所有子进程"""
+    """Clean up all child processes"""
     for proc in processes:
         try:
-            if proc.poll() is None:  # 如果进程还在运行
-                # 在 Windows 上使用 taskkill
+            if proc.poll() is None:  # If process is still running
+                # Use taskkill on Windows
                 if os.name == "nt":
                     subprocess.run(["taskkill", "/F", "/T", "/PID", str(proc.pid)])
-                # 在 Unix-like 系统上使用 SIGTERM
+                # Use SIGTERM on Unix-like systems
                 else:
-                    proc.terminate()  # 发送 SIGTERM
-                    # 给进程一些时间来清理
+                    proc.terminate()  # Send SIGTERM
+                    # Give process some time to clean up
                     try:
                         proc.wait(timeout=5)
                     except subprocess.TimeoutExpired:
-                        proc.kill()  # 如果进程没有及时响应，强制结束
+                        proc.kill()  # Force kill if process doesn't respond in time
 
                 print(f"Terminated process {proc.pid}")
         except Exception as e:
@@ -114,6 +121,11 @@ if __name__ == "__main__":
     parser.add_argument("--total_ranks", help="process number", type=int, default=8)
     parser.add_argument("--index_name", type=str, required=True)
     parser.add_argument("--file_name", type=str, required=True)
+    parser.add_argument("--bulk_size", type=int, default=10, help="bulk size")
+    parser.add_argument(
+        "--use_aws_auth", action="store_true", help="whether to use aws auth"
+    )
+    parser.add_argument("--region", type=str, default="us-east-1", help="AWS region")
 
     args = parser.parse_args()
     print(args)

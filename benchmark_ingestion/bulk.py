@@ -1,24 +1,11 @@
 import json
-import boto3
 import argparse
 import time
 import os
 
 from tqdm import tqdm
 from opensearchpy import OpenSearch
-from requests_aws4auth import AWS4Auth
-
-
-def get_aws_auth(service="aoss"):
-    credentials = boto3.Session().get_credentials()
-    aws_auth = AWS4Auth(
-        credentials.access_key,
-        credentials.secret_key,
-        args.region,
-        service,
-        session_token=credentials.token,
-    )
-    return aws_auth
+from utils import get_os_client
 
 
 def retry(bulk_body, r):
@@ -34,7 +21,7 @@ def retry(bulk_body, r):
         new_bulk_body = new_bulk_body + bulk_body[idx * 2 : idx * 2 + 2]
     print(args.rank, len(bulk_body), len(new_bulk_body))
     time.sleep(3)
-    new_r = client.bulk(new_bulk_body, timeout=1000)
+    new_r = client.bulk(new_bulk_body)
     retry(new_bulk_body, new_r)
 
 
@@ -53,35 +40,32 @@ parser.add_argument("--rank", help="display a square of a given number", type=in
 parser.add_argument("--total", help="display a square of a given number", type=int)
 parser.add_argument("--index_name", type=str, required=True)
 parser.add_argument("--file_name", type=str, required=True)
+parser.add_argument(
+    "--use_aws_auth", action="store_true", help="whether to use aws auth"
+)
+parser.add_argument("--bulk_size", type=int, default=10, help="bulk size")
+parser.add_argument("--region", type=str, default="us-east-1", help="AWS region")
 args = parser.parse_args()
 print(args)
 
-step = 400
+bulk_size = args.bulk_size
 index_name = args.index_name
 jsonl_file = f"{args.file_name}.jsonl"
 offset_file = f"{args.file_name}.offset"
 
-
-# client = OpenSearch(
-#     hosts=[{'host': host, 'port': port}],
-#     http_auth=get_aws_auth(),
-#     use_ssl=True,
-#     verify_certs=True,
-#     connection_class=RequestsHttpConnection
-# )
-client = OpenSearch(hosts=os.environ["HOSTS"])
+client = get_os_client(use_aws_auth=args.use_aws_auth, region=args.region)
 
 with open(offset_file, "r") as f:
     offsets = [int(line.strip()) for line in f]
 
 all_idxs = [i for i in range(len(offsets)) if i % args.total == args.rank]
 
-for i in tqdm(range(0, len(all_idxs), step)):
+for i in tqdm(range(0, len(all_idxs), bulk_size)):
     bulk_body = []
-    idxs = all_idxs[i : min(i + step, len(all_idxs))]
+    idxs = all_idxs[i : min(i + bulk_size, len(all_idxs))]
     for idx in idxs:
         line = read_line_by_index(jsonl_file, offsets, idx)
         bulk_body.append({"index": {"_index": index_name}})
         bulk_body.append(line)
-    r = client.bulk(bulk_body, timeout=1000)
+    r = client.bulk(bulk_body)
     retry(bulk_body, r)

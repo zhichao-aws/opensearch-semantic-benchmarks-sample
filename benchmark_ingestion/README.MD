@@ -54,5 +54,5 @@ PUT /_ingest/pipeline/nlp-ingest-pipeline-sparse
 
 4. Run benchmark command. example:
 ```
-python run_bulk.py --index_name marco --file_name dataset/marco
+python run_bulk.py --index_name test-index --file_name nfcorpus
 ```
