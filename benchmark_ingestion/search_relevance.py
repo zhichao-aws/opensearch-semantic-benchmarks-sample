@@ -4,6 +4,9 @@ from concurrent.futures import ThreadPoolExecutor
 from utils import get_os_client
 from tqdm import tqdm
 from beir.retrieval.evaluation import EvaluateRetrieval
+from dotenv import load_dotenv
+
+load_dotenv()
 
 
 def load_queries_and_qrels(queries_file, qrels_file):
@@ -24,7 +27,9 @@ def load_queries_and_qrels(queries_file, qrels_file):
     return queries, qrels
 
 
-def create_query_body(query_text, embedding_field="embedding"):
+def create_query_body(
+    query_text, query_type="neural_sparse", embedding_field="embedding"
+):
     """
     Create query body for neural sparse search
 
@@ -35,20 +40,35 @@ def create_query_body(query_text, embedding_field="embedding"):
     Returns:
         dict: Query body for OpenSearch
     """
-    return {
-        "query": {
-            "neural_sparse": {
-                embedding_field: {
-                    "query_text": query_text,
+    if query_type == "neural_sparse":
+        return {
+            "query": {
+                "neural_sparse": {
+                    embedding_field: {
+                        "query_text": query_text,
+                    }
+                },
+            },
+            "_source": ["id", "text"],
+            "size": 15,
+        }
+    elif query_type == "match":
+        return {
+            "query": {
+                "match": {
+                    "text": query_text,
                 }
             },
-        },
-        "_source": ["id", "text"],
-        "size": 15,
-    }
+            "_source": ["id", "text"],
+            "size": 15,
+        }
+    else:
+        raise ValueError(f"Invalid query type: {query_type}")
 
 
-def search_query(client, index_name, query_item, embedding_field):
+def search_query(
+    client, index_name, query_item, embedding_field, query_type="neural_sparse"
+):
     """
     Execute search query for a single query
 
@@ -62,7 +82,7 @@ def search_query(client, index_name, query_item, embedding_field):
         tuple: (query_id, scores dict)
     """
     query_id, query_text = query_item
-    query_body = create_query_body(query_text, embedding_field)
+    query_body = create_query_body(query_text, query_type, embedding_field)
     response = client.search(index=index_name, body=query_body)
 
     hits = response["hits"]["hits"]
@@ -77,6 +97,7 @@ def evaluate_search_relevance(
     qrels,
     embedding_field,
     max_workers,
+    query_type="neural_sparse",
 ):
     """
     Evaluate search relevance using BEIR evaluation metrics
@@ -103,6 +124,7 @@ def evaluate_search_relevance(
                 index_name,
                 item,
                 embedding_field,
+                query_type,
             )
             for item in queries.items()
         ]
@@ -142,7 +164,9 @@ if __name__ == "__main__":
         "--use_aws_auth", action="store_true", help="Whether to use AWS authentication"
     )
     parser.add_argument("--region", type=str, default="us-east-1", help="AWS region")
-
+    parser.add_argument(
+        "--query_type", type=str, default="neural_sparse", help="Query type"
+    )
     args = parser.parse_args()
     print(args)
 
@@ -162,14 +186,12 @@ if __name__ == "__main__":
             qrels=qrels,
             embedding_field=args.embedding_field,
             max_workers=args.max_workers,
+            query_type=args.query_type,
         )
 
         # Print results
         print("\nEvaluation Results:")
-        print(f"NDCG: {ndcg}")
-        print(f"MAP: {map_}")
-        print(f"Recall: {recall}")
-        print(f"Precision: {precision}")
+        print(f"NDCG@10: {ndcg['NDCG@10']}")
 
     except KeyboardInterrupt:
         print("\nEvaluation interrupted by user")

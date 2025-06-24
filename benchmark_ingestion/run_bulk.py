@@ -4,8 +4,11 @@ import sys
 import time
 import os
 import argparse
+from dotenv import load_dotenv
 
 from tqdm import tqdm
+
+load_dotenv()
 
 
 def create_offset_file(jsonl_file, offset_file):

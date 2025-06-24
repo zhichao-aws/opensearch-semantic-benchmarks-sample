@@ -1,0 +1,5 @@
+mteb
+python-dotenv
+opensearch-py
+datasets
+beir

@@ -1,11 +1,12 @@
 import json
 import argparse
 import time
-import os
 
 from tqdm import tqdm
-from opensearchpy import OpenSearch
 from utils import get_os_client
+from dotenv import load_dotenv
+
+load_dotenv()
 
 
 def retry(bulk_body, r):
@@ -19,8 +20,10 @@ def retry(bulk_body, r):
     new_bulk_body = []
     for idx in failed:
         new_bulk_body = new_bulk_body + bulk_body[idx * 2 : idx * 2 + 2]
-    print(args.rank, len(bulk_body), len(new_bulk_body))
-    time.sleep(3)
+    print(
+        f"Failed bulk. Process rank:{args.rank}: {len(bulk_body)//2} -> {len(new_bulk_body)//2}"
+    )
+    time.sleep(1)
     new_r = client.bulk(new_bulk_body)
     retry(new_bulk_body, new_r)
 

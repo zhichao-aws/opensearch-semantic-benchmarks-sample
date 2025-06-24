@@ -52,7 +52,19 @@ PUT /_ingest/pipeline/nlp-ingest-pipeline-sparse
 }
 ```
 
-4. Run benchmark command. example:
+4. Run ingest command. example:
 ```
 python run_bulk.py --index_name test-index --file_name nfcorpus
+```
+
+## To benchmark search relevance
+
+1. use refresh API to refresh the index, or wait the index update in AOSS.
+
+2. prepare queries json file and qrels json file
+- If using nfcorpus, this step can be skipped
+
+3. Run relevance command. example:
+```
+python search_relevance.py --queries_file nfcorpus-queries.json --qrels_file nfcorpus-qrels.json --index_name test-index
 ```
