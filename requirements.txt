@@ -3,3 +3,4 @@ python-dotenv
 opensearch-py
 datasets
 beir
+requests_aws4auth
