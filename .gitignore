@@ -179,3 +179,4 @@ dataset
 error.json
 beir
 run.sh
+res.*.csv
