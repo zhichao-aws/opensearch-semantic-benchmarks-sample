@@ -11,8 +11,11 @@ from pathlib import Path
 import random
 import time
 from dotenv import load_dotenv
+import logging
 
 load_dotenv()
+
+logger = logging.getLogger(__name__)
 
 # How to use
 # 1. install locust & boto3
@@ -40,42 +43,42 @@ content_type = "application/json"
 
 def generate_payload_from_doc(size_per_doc_kb, request_size_kb):
     """
-    根据指定的文档大小和请求大小生成payload
+    Generate a payload according to the given document size and total request size.
     """
-    # 读取doc.txt
+    # Read doc.txt
     doc_path = Path(__file__).parent / "doc.txt"
     with doc_path.open("r", encoding="utf-8") as f:
         doc_content = f.read()
 
-    # 计算目标字节数
+    # Calculate target byte counts
     size_per_doc_bytes = size_per_doc_kb * 1024
     request_size_bytes = request_size_kb * 1024
 
-    # 调整单个文档大小
+    # Adjust single document size
     doc_content_bytes = doc_content.encode("utf-8")
     current_size = len(doc_content_bytes)
 
     if current_size < size_per_doc_bytes:
-        # 需要重复内容
+        # Repeat content if needed
         repeat_count = (size_per_doc_bytes + current_size - 1) // current_size
         adjusted_doc = doc_content * repeat_count
         adjusted_doc = adjusted_doc.encode("utf-8")[:size_per_doc_bytes].decode(
             "utf-8", errors="ignore"
         )
     else:
-        # 需要截断内容
+        # Truncate content if needed
         adjusted_doc = doc_content_bytes[:size_per_doc_bytes].decode(
             "utf-8", errors="ignore"
         )
 
-    # 计算需要的文档数量
+    # Compute required number of documents
     doc_count = request_size_kb // size_per_doc_kb
     if request_size_kb % size_per_doc_kb != 0:
         raise ValueError(
-            f"request_size ({request_size_kb}KB) 必须能被 size_per_doc ({size_per_doc_kb}KB) 整除"
+            f"request_size ({request_size_kb}KB) must be divisible by size_per_doc ({size_per_doc_kb}KB)"
         )
 
-    # 创建文档列表
+    # Create the document list
     payload_list = [adjusted_doc] * doc_count
 
     return json.dumps(payload_list)
@@ -120,6 +123,10 @@ class SageMakerClient:
         ) * 1000
 
         events.request.fire(**request_meta)
+        if request_meta["exception"] is not None:
+            logger.error(
+                f"Error invoking endpoint {endpoint_name}: {request_meta['exception']}"
+            )
 
 
 class SageMakerUser(User):
@@ -146,7 +153,7 @@ class SageMakerUser(User):
         size_per_doc_kb = self.environment.parsed_options.size_per_doc
         request_size_kb = self.environment.parsed_options.request_size
 
-        # 生成payload
+        # Generate payload
         globals()["payload"] = generate_payload_from_doc(
             size_per_doc_kb, request_size_kb
         )
@@ -165,17 +172,44 @@ class SimpleSendRequest(SageMakerUser):
 
 
 class StagesShape(LoadTestShape):
-    stages = [
-        {"duration": 5, "users": 10, "spawn_rate": 5},
-        {"duration": 30, "users": 10, "spawn_rate": 10},
-    ]
+    """Two-stage load model:
+
+    Stage 1: fixed 5-second warm-up, ramp to --max-users at --spawn-rate.
+    Stage 2: maintain the same concurrency for --second-stage-duration seconds.
+    """
+
+    def __init__(self):
+        # NOTE: LoadTestShape.__init__ takes no arguments
+        super().__init__()
+
+        # Stages will be built lazily once the environment (and its parsed_options) is available
+        self._stages_built = False
+
+    def _build_stages(self):
+        """Create the stages configuration from environment variables."""
+        max_users = int(os.environ.get("MAX_USERS", "10"))
+        second_stage_duration = int(os.environ.get("SECOND_STAGE_DURATION", "30"))
+
+        # Make durations cumulative (Locust expects duration to be cumulative seconds since start)
+        self.stages = [
+            {"duration": 5, "users": max_users, "spawn_rate": 10},
+            {
+                "duration": 5 + second_stage_duration,
+                "users": max_users,
+                "spawn_rate": 10,
+            },
+        ]
+        self._stages_built = True
 
     def tick(self):
+        # Lazily build stages when environment is ready
+        if not self._stages_built:
+            self._build_stages()
+
         run_time = self.get_run_time()
 
         for stage in self.stages:
             if run_time < stage["duration"]:
-                tick_data = (stage["users"], stage["spawn_rate"])
-                return tick_data
+                return stage["users"], stage["spawn_rate"]
 
         return None
