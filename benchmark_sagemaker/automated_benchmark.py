@@ -147,19 +147,8 @@ def test_parameter_set(
     """
     print(f"\nStarting parameter set test: ({size_per_doc}KB, {docs_per_request} docs)")
 
-    # Determine starting users based on request size
-    total_request_kb = size_per_doc * docs_per_request
-    if total_request_kb < 10:
-        current_users = max(start_users + 2 * step_size, 1)
-        if current_users > start_users:
-            print(
-                f"Total request size {total_request_kb}KB < 10KB, starting users adjusted to {current_users} (start_users + 2*step_size)."
-            )
-    else:
-        current_users = start_users
-
     results = []
-    previous_rps = 0
+    current_users = start_users
 
     while True:
         request_size = size_per_doc * docs_per_request
@@ -183,22 +172,12 @@ def test_parameter_set(
             }
         )
 
-        # Check whether we should continue to increase users
-        if previous_rps > 0:
-            improvement = (rps - previous_rps) / previous_rps
-            print(f"RPS improvement: {improvement:.2%}")
-
-            if improvement < 0.08:  # less than 8% improvement
-                print("RPS improvement < 8 %, stopping user increase")
-                break
-
-        previous_rps = rps
-        current_users += step_size
-
-        # Safety limit: maximum number of users
-        if current_users > 40:
-            print("Reached maximum user limit (40), stopping test")
+        # Stop if P90 latency exceeds 400ms
+        if p90_latency > 400:
+            print(f"P90 latency ({p90_latency:.1f}ms) > 400ms, stopping user increase")
             break
+
+        current_users += step_size
 
     return results
 

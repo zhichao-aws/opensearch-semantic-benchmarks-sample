@@ -192,7 +192,7 @@ class StagesShape(LoadTestShape):
 
         # Make durations cumulative (Locust expects duration to be cumulative seconds since start)
         self.stages = [
-            {"duration": 5, "users": max_users, "spawn_rate": 10},
+            {"duration": 5, "users": max_users, "spawn_rate": 100},
             {
                 "duration": 5 + second_stage_duration,
                 "users": max_users,
