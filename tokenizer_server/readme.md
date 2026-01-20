@@ -19,7 +19,7 @@ curl -X POST http://localhost:8080/invocations \
 
 ---
 
-## Push your local Docker image to Amazon ECR
+## A) Push your local Docker image to Amazon ECR
 
 ### 0) Prereqs
 
@@ -95,6 +95,7 @@ python deploy.py \
   --region $AWS_REGION \
   --image-uri $ECR_IMAGE_URI \
   --execution-role-arn $SAGEMAKER_ROLE_ARN
+  --instance-type ml.c7i.xlarge
 ```
 
 ---
@@ -110,7 +111,7 @@ export TS=$(date +%s)
 export MODEL_NAME="hf-tokenizer-model-${TS}"
 export CONFIG_NAME="hf-tokenizer-epc-${TS}"
 export ENDPOINT_NAME="hf-tokenizer-ep-${TS}"
-export INSTANCE_TYPE="ml.m5.large"
+export INSTANCE_TYPE="ml.c7i.xlarge"
 ```
 
 ### 2) Create Model
@@ -201,19 +202,4 @@ locust -f locustfile_local.py \
   --users 20 \
   --processes 10 \
   --spawn-rate 20
-```
-
-### install wrk
-```bash
-sudo yum update -y
-sudo yum groupinstall -y "Development Tools"
-sudo yum install -y git openssl-devel
-
-git clone https://github.com/wg/wrk.git
-cd wrk
-make
-
-# 安装到系统 PATH（推荐）
-sudo cp wrk /usr/local/bin/
-wrk -v
 ```
