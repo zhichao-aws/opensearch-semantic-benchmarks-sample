@@ -1,0 +1,37 @@
+FROM python:3.11-slim
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PORT=8080 \
+    # We will use multi-process scaling, so keep tokenizer threads per worker minimal
+    TOKENIZERS_PARALLELISM=false \
+    RAYON_NUM_THREADS=1
+
+# Minimal OS deps (optional: curl for debugging)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates \
+    curl \
+  && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /opt/program
+
+# Install python deps
+RUN pip install --no-cache-dir \
+    aiohttp==3.10.10 \
+    gunicorn==22.0.0 \
+    tokenizers==0.22.2
+
+# Copy app + scripts
+COPY app.py /opt/program/app.py
+COPY idf.json /opt/program/idf.json
+COPY tokenizer.json /opt/program/tokenizer.json
+COPY tokenizer_wrapper.py /opt/program/tokenizer_wrapper.py
+COPY serve /usr/local/bin/serve
+COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+
+RUN chmod +x /usr/local/bin/serve /usr/local/bin/docker-entrypoint.sh
+
+EXPOSE 8080
+
+ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
+CMD ["serve"]

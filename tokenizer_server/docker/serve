@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+export PORT="${PORT:-8080}"
+
+# Use all cores by default
+export WORKERS="${WORKERS:-$(nproc)}"
+
+# Important: avoid oversubscribing CPU threads.
+# We are scaling via multiple worker processes already.
+export TOKENIZERS_PARALLELISM="${TOKENIZERS_PARALLELISM:-false}"
+export RAYON_NUM_THREADS="${RAYON_NUM_THREADS:-1}"
+
+exec gunicorn \
+  --bind "0.0.0.0:${PORT}" \
+  --workers "${WORKERS}" \
+  --worker-class aiohttp.worker.GunicornWebWorker \
+  --timeout "${TIMEOUT:-60}" \
+  --graceful-timeout "${GRACEFUL_TIMEOUT:-30}" \
+  --keep-alive "${KEEP_ALIVE:-5}" \
+  app:app

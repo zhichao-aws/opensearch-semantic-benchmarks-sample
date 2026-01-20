@@ -181,3 +181,4 @@ beir
 run.sh
 res.*.csv
 metrics
+test.ipynb
