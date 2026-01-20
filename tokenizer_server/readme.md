@@ -7,7 +7,7 @@ docker build -t sagemaker-aiohttp-tokenizer:latest .
 
 try run the server at local to verify:
 ```bash
-docker run --rm -p 8080:8080 sagemaker-aiohttp-tokenizer:latest
+docker run --rm -p 8080:8080 --cpuset-cpus="0,1" sagemaker-aiohttp-tokenizer:latest
 curl -X POST http://localhost:8080/invocations \
      -H "Content-Type: application/json" \
      -d '["This is sentence one", "This is sentence two"]'
@@ -162,4 +162,58 @@ python invoke.py \
   --endpoint-name $ENDPOINT_NAME \
   --region $AWS_REGION \
   --payload "hello from sagemaker"
+```
+
+---
+
+## E) Benchmark with Locust
+
+### 1) Test SageMaker Endpoint
+
+You can use `locust` to benchmark the endpoint performance.
+
+```bash
+# Install locust if needed
+pip install locust boto3
+
+# Run benchmark (e.g. 10 users, spawn 1/sec, run for 20s)
+locust -f locustfile.py \
+  --headless \
+  --run-time 20s \
+  --endpoint-name $ENDPOINT_NAME \
+  --region $AWS_REGION \
+  --queries-file queries.json \
+  --users 4 \
+  --processes 10 \
+  --spawn-rate 20
+```
+
+### 2) Test Local Server
+
+If you are running the server locally (e.g. on port 8080):
+
+```bash
+locust -f locustfile_local.py \
+  --headless \
+  --host http://localhost:8080 \
+  --run-time 20s \
+  --queries-file queries.json \
+  --users 20 \
+  --processes 10 \
+  --spawn-rate 20
+```
+
+### install wrk
+```bash
+sudo yum update -y
+sudo yum groupinstall -y "Development Tools"
+sudo yum install -y git openssl-devel
+
+git clone https://github.com/wg/wrk.git
+cd wrk
+make
+
+# 安装到系统 PATH（推荐）
+sudo cp wrk /usr/local/bin/
+wrk -v
 ```

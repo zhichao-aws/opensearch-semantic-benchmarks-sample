@@ -4,7 +4,7 @@ set -euo pipefail
 export PORT="${PORT:-8080}"
 
 # Use all cores by default
-export WORKERS="${WORKERS:-$(nproc)}"
+export WORKERS="${WORKERS:-$(( $(nproc) * 1 ))}"
 
 # Important: avoid oversubscribing CPU threads.
 # We are scaling via multiple worker processes already.
